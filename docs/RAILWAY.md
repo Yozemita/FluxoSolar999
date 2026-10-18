@@ -4,16 +4,18 @@
 
 1. No serviço API, configure `Yozemita/FluxoSolar999` como origem e **main** como branch de deploy.
 2. Defina a raiz do serviço como `/` (raiz do repositório), não `/backend`. O frontend precisa entrar na mesma imagem.
-3. Use `/railway.json`. Ele seleciona o Dockerfile, `sh scripts/start.sh`, `/health`, timeout de 120 segundos e até cinco reinícios por falha.
+3. Use `/railway.json`. Ele seleciona o Dockerfile, `sh scripts/start.sh`, `/health`, timeout de 120 segundos e até cinco reinícios por falha. Remova o Start Command antigo `uvicorn main:app ...`; o módulo atual é `backend.main:app` e o script resolve o diretório de trabalho.
 4. Mantenha uma réplica. O script executa um processo Uvicorn em `0.0.0.0:$PORT`. Não fixe a porta 8000 na Railway.
 
-O Dockerfile pode ser construído fora do Codex sem qualquer segredo de build. No ambiente Codex, que fornece CA de proxy, teste com:
+O Dockerfile de produção não usa mounts de segredo, que foram rejeitados pelo validador Railway observado neste projeto. Fora do Codex, construa normalmente com `docker build -t fluxosolar:test .`. No ambiente Codex, que fornece CA de proxy, use:
 
 ```bash
-docker build --secret id=proxy_ca,src=/etc/ssl/certs/ca-certificates.crt -t fluxosolar:test .
+python scripts/build_cloud.py --tag fluxosolar:test
 ```
 
-O certificado é montado temporariamente no passo de instalação; não entra na imagem. TLS e verificação dos pacotes permanecem ativos.
+O helper cria uma cópia temporária do Dockerfile e monta o certificado apenas no passo local de instalação. A cópia é removida após o build; o certificado não entra na imagem e o Dockerfile de produção não é modificado. TLS e verificação dos pacotes permanecem ativos.
+
+Se o resumo de um deploy ainda mostrar `/backend` ou o comando antigo, a configuração do serviço Railway continua desatualizada. Corrija a raiz e o comando no serviço API e inicie um novo deploy; reenviar o mesmo build sem esses ajustes não inclui o frontend.
 
 ## Variáveis no serviço API
 
