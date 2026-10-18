@@ -1,9 +1,17 @@
 import logging
 import os
 import secrets
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Railway services created with /backend still invoke `uvicorn main:app`.
+# Make relative imports work when this file is loaded as a top-level module.
+if not __package__:
+    directory = Path(__file__).resolve().parent
+    sys.path.insert(0, str(directory.parent))
+    __package__ = directory.name
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
@@ -20,7 +28,7 @@ from .security import COOKIE, SESSION_SECONDS, authenticate, bootstrap, digest
 from .services import AGENTS, agent_run_dict, compliant, create_draft, creative_dict, dashboard, product_dict, public, ranking, run_agent, winner_score
 
 log = logging.getLogger("fluxosolar")
-FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
+FRONTEND = Path(__file__).resolve().parent / "static"
 INITIAL_PRODUCTS = [
     ("SHOPEE", "CBR-ZWT-AYN", "Macaquinho canelado com zíper", "https://br.shp.ee/q24wptkc?fromSource=copy_link&smtt=0.0.9"),
     ("SHEIN", "2533Q72", "Vestido branco de renda", "https://onelink.shein.com/57/65ewa287r6f5?ismg_ol=EU413VfJpkO_01_KOC-C"),
@@ -91,7 +99,8 @@ def make_app(database_url=None):
     async def headers(request: Request, call_next):
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
-            expected = os.getenv("PUBLIC_BASE_URL", str(request.base_url)).rstrip("/")
+            railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+            expected = (os.getenv("PUBLIC_BASE_URL") or (f"https://{railway_domain}" if railway_domain else str(request.base_url))).rstrip("/")
             if (origin and origin != expected) or request.headers.get("sec-fetch-site") == "cross-site":
                 return JSONResponse({"detail": "Origem não permitida."}, status_code=403)
         response = await call_next(request)
@@ -287,7 +296,7 @@ def make_app(database_url=None):
                 redis_status = "unavailable"
         return {"database": request.app.state.engine.dialect.name, "redis": redis_status,
                 "s3": "configured_unverified" if os.getenv("S3_BUCKET") else "not_configured",
-                "video_generation": "not_connected", "social_publishing": "not_connected", "paid_ads": "not_connected",
+                "social_publishing": "not_connected", "paid_ads": "not_connected",
                 "agents": "local_on_demand", "version": "0.2.0"}
 
     @app.post("/api/media/uploads", dependencies=[Depends(owner)])
@@ -297,7 +306,7 @@ def make_app(database_url=None):
             raise HTTPException(503, "Configure um bucket S3 e credenciais para enviar mídia.")
         import boto3
         from botocore.exceptions import BotoCoreError, ClientError
-        extensions = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4"}
+        extensions = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
         key = f"fluxosolar/{secrets.token_hex(20)}.{extensions[body.content_type]}"
         try:
             client = boto3.client("s3", endpoint_url=os.getenv("S3_ENDPOINT_URL"), region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))

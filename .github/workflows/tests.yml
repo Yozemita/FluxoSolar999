@@ -35,5 +35,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: pip check
-      - run: node --check frontend/app.js
+      - run: node --check backend/static/app.js
       - run: docker build -t fluxosolar:ci .
+      - run: docker build -t fluxosolar:ci-backend backend
+      - run: python scripts/check_image.py --image fluxosolar:ci --legacy-start
+      - run: python scripts/check_image.py --image fluxosolar:ci-backend --legacy-start

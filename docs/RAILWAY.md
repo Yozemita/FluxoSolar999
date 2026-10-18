@@ -3,19 +3,20 @@
 ## Origem e build
 
 1. No serviço API, configure `Yozemita/FluxoSolar999` como origem e **main** como branch de deploy.
-2. Defina a raiz do serviço como `/` (raiz do repositório), não `/backend`. O frontend precisa entrar na mesma imagem.
-3. Use `/railway.json`. Ele seleciona o Dockerfile, `sh scripts/start.sh`, `/health`, timeout de 120 segundos e até cinco reinícios por falha. Remova o Start Command antigo `uvicorn main:app ...`; o módulo atual é `backend.main:app` e o script resolve o diretório de trabalho.
+2. A raiz do serviço pode ser `/` ou `/backend`: cada contexto tem Dockerfile e configuração Railway próprios. O frontend está dentro de `backend/static/` e entra em ambas as imagens.
+3. Use o `railway.json` do contexto escolhido. Ele seleciona o Dockerfile, `sh /app/backend/start.sh`, `/health`, timeout de 120 segundos e até cinco reinícios por falha. O comando legado `uvicorn main:app --host 0.0.0.0 --port $PORT` também funciona nas duas imagens.
 4. Mantenha uma réplica. O script executa um processo Uvicorn em `0.0.0.0:$PORT`. Não fixe a porta 8000 na Railway.
 
 O Dockerfile de produção não usa mounts de segredo, que foram rejeitados pelo validador Railway observado neste projeto. Fora do Codex, construa normalmente com `docker build -t fluxosolar:test .`. No ambiente Codex, que fornece CA de proxy, use:
 
 ```bash
 python scripts/build_cloud.py --tag fluxosolar:test
+python scripts/build_cloud.py --backend --tag fluxosolar:test-backend
 ```
 
 O helper cria uma cópia temporária do Dockerfile e monta o certificado apenas no passo local de instalação. A cópia é removida após o build; o certificado não entra na imagem e o Dockerfile de produção não é modificado. TLS e verificação dos pacotes permanecem ativos.
 
-Se o resumo de um deploy ainda mostrar `/backend` ou o comando antigo, a configuração do serviço Railway continua desatualizada. Corrija a raiz e o comando no serviço API e inicie um novo deploy; reenviar o mesmo build sem esses ajustes não inclui o frontend.
+O build isolado de `backend/` é verificado em CI junto ao build da raiz. O teste de imagem executa o comando legado, valida frontend, health, autenticação, dashboard e um agente; não depende de arquivos fora do contexto.
 
 ## Variáveis no serviço API
 
@@ -24,7 +25,7 @@ Se o resumo de um deploy ainda mostrar `/backend` ou o comando antigo, a configu
 | `DATABASE_URL` | Referência Railway ao PostgreSQL do mesmo ambiente, por exemplo `${{Postgres.DATABASE_URL}}`; ajuste `Postgres` ao nome real do serviço. |
 | `ADMIN_USERNAME` | `rapha` ou nome escolhido. |
 | `ADMIN_PASSWORD` | Senha exclusiva com pelo menos 16 caracteres, inserida de forma segura nas variáveis Railway. Não copie senhas para GitHub. |
-| `PUBLIC_BASE_URL` | URL HTTPS pública completa da API, sem barra final. |
+| `PUBLIC_BASE_URL` | URL HTTPS pública completa da API, sem barra final. Se omitida, a origem é derivada de `RAILWAY_PUBLIC_DOMAIN`, quando presente. |
 | `COOKIE_SECURE` | `true` em produção HTTPS. |
 | `REDIS_URL` | Opcional: referência `${{Redis.REDIS_URL}}`, ajustando o nome do serviço. |
 | `S3_BUCKET` | Opcional: nome de bucket existente. |
@@ -34,7 +35,7 @@ Se o resumo de um deploy ainda mostrar `/backend` ou o comando antigo, a configu
 
 Variáveis configuradas no Codex **não são transferidas automaticamente para a Railway**. Credenciais existentes devem ser reutilizadas no serviço correto, sem publicar seus valores.
 
-O usuário é criado apenas se o banco não tiver proprietário. Alterar `ADMIN_PASSWORD` depois não troca o hash existente. Para trocar a senha e revogar sessões, execute `python -m scripts.manage reset-password` no ambiente do serviço após configurar o novo valor seguro de `ADMIN_PASSWORD`.
+O usuário é criado apenas se o banco não tiver proprietário. Alterar `ADMIN_PASSWORD` depois não troca o hash existente. Para trocar a senha e revogar sessões, execute `python -m backend.manage reset-password` no ambiente do serviço após configurar o novo valor seguro de `ADMIN_PASSWORD`.
 
 ## Validação de cada deploy
 
@@ -49,7 +50,7 @@ Se `/health` falhar, confirme primeiro `DATABASE_URL`, rede privada PostgreSQL e
 
 ## S3
 
-O navegador usa um POST temporário de cinco minutos, limitado ao tipo JPEG/PNG/WebP/MP4 e 25 MB. Configure CORS do bucket para permitir POST apenas da origem HTTPS do painel e os campos exigidos pelo seu provedor. Mantenha objetos privados e a política restrita ao prefixo `fluxosolar/`. Não há leitura pública automática da mídia; a chave é vinculada ao rascunho após o upload.
+O navegador usa um POST temporário de cinco minutos, limitado ao tipo JPEG/PNG/WebP e 25 MB. Configure CORS do bucket para permitir POST apenas da origem HTTPS do painel e os campos exigidos pelo seu provedor. Mantenha objetos privados e a política restrita ao prefixo `fluxosolar/`. Não há leitura pública automática da imagem; a chave é vinculada ao rascunho após o upload.
 
 ## Retirada de work e migrações
 

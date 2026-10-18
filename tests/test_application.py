@@ -148,9 +148,10 @@ def test_optional_integrations_report_missing_configuration(client):
     login(client)
     result = client.get("/api/status").json()
     assert result["redis"] == "not_configured" and result["s3"] == "not_configured"
-    assert result["video_generation"] == "not_connected"
+    assert "video_generation" not in result
     assert client.post("/api/media/uploads", json={"content_type": "image/png"}).status_code == 503
     assert client.post("/api/media/uploads", json={"content_type": "text/html"}).status_code == 422
+    assert client.post("/api/media/uploads", json={"content_type": "video/mp4"}).status_code == 422
 
 
 def test_media_signing_enforces_type_size_and_private_key(client, monkeypatch):
@@ -211,3 +212,24 @@ def test_dashboard_flags_missing_disclosure_and_overdue_planning(client):
     assert {item["view"] for item in result["insights"]} >= {"schedule", "studio"}
     run = client.post("/api/agents/Compliance/run", json={}).json()
     assert "1 precisa(m) revisar" in run["summary"]
+
+
+def test_railway_domain_is_used_for_origin_validation(client, monkeypatch):
+    monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
+    monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "fluxosolar.example.test")
+    good = client.post("/api/auth/login", headers={"Origin": "https://fluxosolar.example.test"}, json={"username": "rapha", "password": PASSWORD})
+    assert good.status_code == 200
+    bad = client.post("/api/auth/login", headers={"Origin": "https://another.example.test"}, json={"username": "rapha", "password": PASSWORD})
+    assert bad.status_code == 403
+
+
+def test_backend_context_imports_legacy_command_and_includes_dashboard(tmp_path):
+    import pathlib
+    import shutil
+    import subprocess
+    import sys
+    source = pathlib.Path(__file__).resolve().parents[1] / "backend"
+    target = tmp_path / "isolated_backend"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "data"))
+    result = subprocess.run([sys.executable, "-c", "import main; assert main.app.version == '0.2.0'; assert (main.FRONTEND / 'index.html').is_file(); assert (main.FRONTEND / 'app.js').is_file()"], cwd=target, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

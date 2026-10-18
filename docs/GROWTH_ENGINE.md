@@ -1,137 +1,40 @@
-# FluxoSolar Growth Engine
+# FluxoSolar: painel, dashboard e agentes
 
-## Visão
+O projeto reúne a operação interna de afiliados: catálogo Shopee/SHEIN, legendas e briefings, imagens de produtos, métricas importadas e planejamento. A geração de vídeos é um projeto separado e não integra este painel.
 
-Painel futurista para organizar produtos afiliados, criativos, publicação, analytics e experimentos de crescimento orgânico. O sistema usa agentes/bots internos apenas para tarefas legítimas de bastidor; eles não criam contas falsas, seguidores, visualizações, cliques, comentários ou engajamento artificial e não contornam requisitos das plataformas.
+## Fluxo disponível
 
-## Visual
+`Produto -> Rascunho -> Revisão de publicidade -> Planejamento manual -> Importação de métricas -> Análise`
 
-- interface dark futurista com dourado solar e detalhes inspirados em Tiphereth/Vênus de forma abstrata;
-- dashboard responsivo com cards luminosos, microinterações e gráficos;
-- modo catálogo para Shopee e SHEIN;
-- produto sempre ligado ao ID/SKU, link afiliado, mídia e campanha corretos.
+O dashboard mostra totais acumulados, CTR, conversão, resultado de mídia, ROI, ranking com amostra mínima, atividade dos agentes e próximos passos. Indicadores sem denominador aparecem sem valor calculado. Os relatórios são informados pelo proprietário; nenhuma coleta de redes sociais é simulada.
 
 ## Agentes internos
 
-### Scout Agent
-Analisa métricas importadas e encontra criativos/produtos com melhor desempenho real.
+| Agente | Tarefa implementada |
+| --- | --- |
+| Scout | Analisa produtos a partir das métricas importadas e do limite de amostra. |
+| Creative | Prepara legenda e briefing por template para revisão do proprietário. |
+| Catalog | Consulta produtos e vínculos entre comerciante, código e link afiliado. |
+| Scheduler | Consulta a agenda interna; a publicação externa é manual. |
+| Analytics | Consolida métricas e resultado de mídia informado. |
+| Winner | Aplica o ranking heurístico, sem alterar orçamentos ou anúncios. |
+| Compliance | Confere identificação de publicidade e link de afiliado nas legendas. |
 
-### Creative Agent
-Gera sugestões de hooks, títulos, descrições, CTAs e hashtags relevantes para cada produto. Nunca cria alegações falsas.
+São tarefas determinísticas executadas sob demanda. Cada execução bem-sucedida tem resultado e data persistidos. A rotina de análise executa os seis agentes de consulta sem criar rascunhos. Não há orquestração por LLM nem trabalhadores de publicação social em operação.
 
-### Catalog Agent
-Mantém `merchant -> produto -> ID/SKU -> link afiliado -> foto/vídeo` e bloqueia associações conflitantes.
+## Persistência e implantação
 
-### Scheduler Agent
-Monta uma fila de publicação e recomenda horários a partir de dados disponíveis. Publicação automática só por integrações oficiais/autorizadas.
+- FastAPI serve API e frontend `backend/static/` no mesmo domínio, com login de proprietário.
+- PostgreSQL é o banco da Railway; SQLite é somente a alternativa local de desenvolvimento.
+- As tabelas guardam proprietário, sessões, tentativas de login, produtos, lotes de métricas, rascunhos, agenda, execuções e auditoria.
+- O Redis configurado é verificado por PING; não é apresentado como fila de produção.
+- O S3 opcional recebe somente imagens JPEG, PNG e WebP via autorização temporária.
+- Existem builds completos na raiz e em `backend/`. Ambos incluem o dashboard e aceitam o comando `uvicorn main:app` usado em serviços Railway existentes.
 
-### Analytics Agent
-Calcula CTR, visitas ao perfil, seguidores atribuíveis quando disponíveis, conversão, receita e comissão. Separa alcance orgânico de mídia paga.
+O ranking exige 100 visualizações, 20 cliques e três conversões para calcular um score. Esses limites são heurísticos e não significância estatística. O resultado de mídia inclui somente comissão menos gasto informado; não representa lucro líquido.
 
-### Winner Agent
-Pontua criativos com dados reais e recomenda quais formatos merecem novas variações. Pode usar exploração/explotação (multi-armed bandit) apenas para escolher criativos, nunca para fabricar tráfego.
+## Integrações externas
 
-### Compliance Agent
-Valida disclosure de afiliado, consistência de produto/link, claims e regras de plataforma antes de liberar uma campanha.
+Publicação social, sincronização automática de relatórios e anúncios dependem de integrações futuras. O painel não cria seguidores, visualizações, cliques, comentários ou contas artificiais. Não afirma estoque, preço, desconto ou comissão verificados em comerciantes externos.
 
-## Funil
-
-`Produto -> Catálogo -> Criativo -> Compliance -> Fila -> Publicação autorizada -> Analytics -> Winner Engine -> Nova variação`
-
-## Dados mínimos
-
-### Product
-- id
-- merchant: SHOPEE | SHEIN
-- external_code
-- title
-- affiliate_url
-- storefront_url opcional
-- storefront_link_id opcional
-- price_snapshot opcional
-- commission_snapshot opcional
-- created_at
-
-### Creative
-- id
-- product_id
-- media_path/media_url
-- media_type
-- hook
-- caption
-- hashtags
-- disclosure
-- status
-
-### Campaign
-- id
-- creative_id
-- channel
-- scheduled_at
-- publication_id opcional
-- status
-- organic_or_paid
-
-### MetricSnapshot
-- campaign_id
-- captured_at
-- views
-- watch_time opcional
-- completion_rate opcional
-- likes
-- comments
-- shares
-- profile_visits
-- follows
-- clicks
-- conversions
-- revenue
-- commission
-
-## Winner Score
-
-Normalizar métricas por canal e janela temporal. Exemplo inicial:
-
-`score = 0.25*follow_rate + 0.20*profile_visit_rate + 0.20*ctr + 0.15*conversion_rate + 0.10*share_rate + 0.10*commission_per_1k_views`
-
-Pesos devem ser configuráveis e só usar métricas realmente disponíveis.
-
-## Stack proposta
-
-- Frontend: Next.js + TypeScript + Tailwind + shadcn/ui
-- API: FastAPI
-- Banco: PostgreSQL
-- Filas: Redis + Celery/Dramatiq
-- Objetos: S3/MinIO
-- Analytics: PostgreSQL inicialmente; ClickHouse/PostHog opcional em escala
-- Observabilidade: Prometheus + Grafana + Loki
-- Deploy: Docker Compose + Caddy/Traefik
-
-## Primeiros produtos cadastráveis
-
-- Shopee: macaquinho canelado com zíper — ID `CBR-ZWT-AYN`
-- SHEIN: vestido branco de renda — código `2533Q72`
-- SHEIN: calça de pijama SweetSlumber — código `S6RNVSC`
-- Shopee: vestido frente única com babado — ID `AKW-MJA-BNP`
-
-Os links devem ser armazenados no banco/segredos de configuração apropriados e nunca cruzados entre produtos.
-
-## Guardrails
-
-1. Sem bots de seguidores, views, likes, comentários ou cliques.
-2. Sem criação/operação de contas falsas.
-3. Sem CAPTCHA bypass, device spoofing ou evasão de rate limits.
-4. Sem automação de Promote/compra de anúncios sem aprovação humana e elegibilidade da conta.
-5. Sem contornar requisitos de idade, TikTok Shop ou programas de afiliados.
-6. Somente APIs, conectores e fluxos autorizados pelas plataformas.
-7. Toda ação externa fica auditável em `audit_log`.
-
-## Roadmap
-
-1. Scaffold frontend/API/DB e autenticação do painel.
-2. Catálogo afiliado e importação de mídia.
-3. Creative Studio e templates de overlay com ID/SKU.
-4. Scheduler e integrações oficiais.
-5. Analytics + Winner Engine.
-6. Agentes internos e fila de recomendações.
-7. Observabilidade, backups e deploy self-hosted.
+Consulte [README](../README.md) para iniciar a aplicação e [Railway](RAILWAY.md) para requisitos de produção, healthcheck, credenciais e validação de dados.

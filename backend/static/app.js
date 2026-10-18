@@ -93,7 +93,7 @@ function renderDashboard(data, status) {
   const integrations = $("#integrations"); integrations.replaceChildren();
   [["Banco", status.database === "postgresql" ? "PostgreSQL" : "SQLite · desenvolvimento"],
    ["Redis", ({ready: "Conexão verificada", unavailable: "Conexão indisponível", not_configured: "Não configurado"})[status.redis]],
-   ["Mídia S3", status.s3 === "not_configured" ? "Não configurada" : "Configurada · envio a validar"],
+   ["Imagens do catálogo", status.s3 === "not_configured" ? "Não configurada" : "Configurada · envio a validar"],
    ["Publicação social", "Não conectada"]].forEach(([label, value]) => {
     const box = el("div", label, "integration"); box.append(el("small", value)); integrations.append(box);
   });
@@ -170,16 +170,16 @@ function renderCreatives() {
     const form = el("form", undefined, "panel creative-editor");
     form.dataset.creativeId = String(creative.id);
     const product = state.products.find(p => p.id === creative.product_id);
-    const meta = el("p", `Rascunho #${creative.id} · ${product?.external_code || "Produto"} · Template, sem geração de mídia`, "footnote full");
+    const meta = el("p", `Rascunho #${creative.id} · ${product?.external_code || "Produto"} · Legenda e briefing`, "footnote full");
     form.append(el("h3", product?.title || creative.title), meta, field("Título", "title", creative.title), field("Legenda", "caption", creative.caption, true));
     const prompt = field("Briefing de conteúdo", "prompt", creative.prompt, true); prompt.classList.add("full"); form.append(prompt);
-    const uploadLabel = el("label", "Anexar mídia autorizada · S3, até 25 MB");
-    const file = el("input"); file.type = "file"; file.accept = "image/jpeg,image/png,image/webp,video/mp4"; uploadLabel.append(file);
-    const mediaStatus = el("p", creative.media_key ? "Mídia anexada ao rascunho" : "Sem mídia anexada", "footnote");
-    const upload = el("button", "Enviar mídia", "quiet"); upload.type = "button";
+    const uploadLabel = el("label", "Anexar imagem do produto · até 25 MB");
+    const file = el("input"); file.type = "file"; file.accept = "image/jpeg,image/png,image/webp"; uploadLabel.append(file);
+    const mediaStatus = el("p", creative.media_key ? "Anexo salvo no rascunho" : "Sem imagem anexada", "footnote");
+    const upload = el("button", "Enviar imagem", "quiet"); upload.type = "button";
     upload.addEventListener("click", () => busy(upload, async () => {
       const media = file.files[0];
-      if (!media) throw new Error("Selecione uma imagem ou vídeo primeiro.");
+      if (!media) throw new Error("Selecione uma imagem primeiro.");
       if (media.size > 25 * 1024 * 1024) throw new Error("O limite de envio é 25 MB.");
       const signed = await api("/api/media/uploads", {content_type: media.type});
       const body = new FormData(); Object.entries(signed.upload.fields).forEach(([k, v]) => body.append(k, v)); body.append("file", media);
@@ -187,7 +187,7 @@ function renderCreatives() {
       if (!result.ok) throw new Error("O armazenamento recusou o envio. Confira as permissões e CORS do bucket.");
       creative.media_key = signed.key;
       await saveCreative(form, creative);
-      mediaStatus.textContent = "Mídia anexada ao rascunho"; notice("Mídia enviada e rascunho salvo.");
+      mediaStatus.textContent = "Anexo salvo no rascunho"; notice("Imagem enviada e rascunho salvo.");
     }));
     const uploadBox = el("div"); uploadBox.append(uploadLabel, upload, mediaStatus); form.append(uploadBox);
     const save = el("button", "Salvar rascunho", "primary"); save.type = "submit"; form.append(save);
@@ -219,7 +219,7 @@ function renderSchedules() {
   });
   if (!state.schedules.length) list.append(el("p", "Nenhuma publicação planejada.", "empty"));
 }
-const descriptions = {Scout: "Identifica produtos com dados suficientes para uma nova análise.", Creative: "Cria uma legenda e um prompt por template para o produto escolhido.", Catalog: "Consulta o catálogo salvo e seus vínculos de produto.", Scheduler: "Consulta a agenda interna, sem publicar nos canais.", Analytics: "Consolida as métricas e o resultado de mídia informado.", Winner: "Aplica o ranking heurístico às métricas importadas.", Compliance: "Confere identificação de publicidade nas legendas."};
+const descriptions = {Scout: "Identifica produtos com dados suficientes para uma nova análise.", Creative: "Cria uma legenda e um briefing por template para o produto escolhido.", Catalog: "Consulta o catálogo salvo e seus vínculos de produto.", Scheduler: "Consulta a agenda interna, sem publicar nos canais.", Analytics: "Consolida as métricas e o resultado de mídia informado.", Winner: "Aplica o ranking heurístico às métricas importadas.", Compliance: "Confere identificação de publicidade nas legendas."};
 function renderAgents() {
   const list = $("#agent-list"); list.replaceChildren();
   state.agents.forEach(name => {

@@ -108,4 +108,4 @@ class AgentInput(Input):
 
 
 class MediaInput(Input):
-    content_type: Literal["image/jpeg", "image/png", "image/webp", "video/mp4"]
+    content_type: Literal["image/jpeg", "image/png", "image/webp"]
