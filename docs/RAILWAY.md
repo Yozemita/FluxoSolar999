@@ -18,6 +18,12 @@ O helper cria uma cópia temporária do Dockerfile e monta o certificado apenas 
 
 O build isolado de `backend/` é verificado em CI junto ao build da raiz. O teste de imagem executa o comando legado, valida frontend, health, autenticação, dashboard e um agente; não depende de arquivos fora do contexto.
 
+## Deploy automático e reconexão GitHub
+
+O serviço acompanha a branch **main**, com **Wait for CI** ativado. Um push deve concluir o workflow `application-checks` com sucesso antes de a Railway publicar o mesmo commit. Confira o hash do commit no deploy, o status `SUCCESS` e o `/health`; uma origem conectada sozinha não comprova que o deploy automático funciona.
+
+São necessárias a conta GitHub conectada à Railway e a permissão do aplicativo Railway para este repositório. Para renovar a conexão da conta, abra [Account Settings](https://railway.com/account), localize o cartão **GitHub** e use **⋯ → Reconnect**. As permissões do aplicativo ficam nas [instalações do GitHub](https://github.com/settings/installations). Depois, confira ou habilite o autodeploy do serviço para `main`.
+
 ## Variáveis no serviço API
 
 | Nome | Configuração |
