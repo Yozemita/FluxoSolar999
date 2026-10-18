@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
 
-from .database import Creative, MetricEvent, Product, Schedule
+from .database import AgentRun, Creative, MetricEvent, Product, Schedule, now
 from .schemas import Metric
 
 FIELDS = tuple(Metric.model_fields)
@@ -45,9 +45,33 @@ def ranking(db):
 
 def dashboard(db):
     rows = ranking(db)
+    totals = {f: sum(r["metrics"][f] for r in rows) for f in FIELDS}
+    creatives = list(db.scalars(select(Creative)))
+    planned = db.scalar(select(func.count()).select_from(Schedule).where(Schedule.status == "planned"))
+    overdue = db.scalar(select(func.count()).select_from(Schedule).where(Schedule.status == "planned", Schedule.scheduled_for < now()))
+    missing_disclosure = sum(not compliant(c) for c in creatives)
+    insights = []
+    if not sum(totals.values()):
+        insights.append({"title": "Importe seu primeiro relatório", "detail": "As métricas ainda não foram informadas. Os resultados aparecerão depois da importação.", "view": "metrics"})
+    if rows and not creatives:
+        insights.append({"title": "Prepare um rascunho", "detail": "Seu catálogo já está disponível. Escolha um produto e prepare uma legenda e um briefing.", "view": "studio"})
+    if missing_disclosure:
+        insights.append({"title": "Revise a identificação de publicidade", "detail": f"{missing_disclosure} rascunho(s) sem identificação completa de publicidade e link de afiliado.", "view": "studio"})
+    if overdue:
+        insights.append({"title": "Confira sua agenda", "detail": f"{overdue} item(ns) planejado(s) com data passada. O painel não confirma publicação externa.", "view": "schedule"})
+    prioritize = sum(r["recommendation"] == "prioritize" for r in rows)
+    if prioritize:
+        insights.append({"title": "Revise os produtos com resultado positivo", "detail": f"{prioritize} produto(s) com amostra mínima e comissão acima do gasto informado. É uma indicação heurística.", "view": "agents"})
+    if totals["views"] and any(not r["sample_sufficient"] and any(r["metrics"].values()) for r in rows):
+        insights.append({"title": "Continue coletando dados", "detail": "Há produtos com métricas abaixo da amostra mínima do ranking. Evite tratar uma amostra pequena como resultado conclusivo.", "view": "metrics"})
+    recent = list(db.scalars(select(AgentRun).order_by(AgentRun.id.desc()).limit(5)))
     return {"products": len(rows), "creatives": db.scalar(select(func.count()).select_from(Creative)),
-            "planned": db.scalar(select(func.count()).select_from(Schedule).where(Schedule.status == "planned")),
-            "totals": {f: sum(r["metrics"][f] for r in rows) for f in FIELDS},
+            "planned": planned, "overdue": overdue, "insights": insights,
+            "totals": totals,
+            "rates": {"ctr": totals["clicks"] / totals["views"] if totals["views"] else None,
+                      "conversion": totals["conversions"] / totals["clicks"] if totals["clicks"] else None,
+                      "roi": (totals["commission"] - totals["spend"]) / totals["spend"] if totals["spend"] else None},
+            "activity": [agent_run_dict(r, include_result=False) for r in recent],
             "profit": round(sum(r["profit"] for r in rows), 2), "ranking": rows,
             "note": "Métricas importadas manualmente. Resultado = comissão − gasto informado; outros custos não incluídos."}
 
@@ -55,7 +79,7 @@ def dashboard(db):
 def create_draft(db, product):
     creative = Creative(product_id=product.id, title=product.title,
         caption=f"Conheça {product.title}. Confira os detalhes no link oficial da {product.merchant}. Publicidade • link de afiliado. #publi",
-        prompt=f"Crie um vídeo vertical sobre {product.title}, código {product.external_code}. Use somente mídia autorizada e informações verificadas. Não invente preço, desconto, benefícios ou avaliações. Preserve a identidade do produto. Inclua identificação de publicidade.")
+        prompt=f"Prepare uma peça de divulgação sobre {product.title}, código {product.external_code}. Use somente mídia autorizada e informações verificadas. Não invente preço, desconto, benefícios ou avaliações. Preserve a identidade do produto. Inclua identificação de publicidade.")
     db.add(creative)
     db.flush()
     return creative
@@ -68,7 +92,7 @@ def compliant(creative):
 
 def run_agent(db, agent, product=None):
     if agent == "Creative":
-        return {"creative": creative_dict(create_draft(db, product)), "message": "Rascunho por template criado. Nenhum vídeo foi gerado."}
+        return {"creative": creative_dict(create_draft(db, product)), "message": "Legenda e briefing preparados por template para sua revisão."}
     if agent == "Catalog":
         return {"products": [product_dict(p) for p in db.scalars(select(Product).order_by(Product.id))],
                 "message": "Catálogo persistido; links validados no cadastro. Estoque e comissão não consultados."}
@@ -81,3 +105,28 @@ def run_agent(db, agent, product=None):
                 "message": "Fila interna de planejamento. Nenhuma publicação externa executada."}
     return {"creatives": [{"id": c.id, "product_id": c.product_id, "disclosure_present": compliant(c)} for c in db.scalars(select(Creative))],
             "message": "Checagem da identificação de publicidade. Não audita mídia nem garante conformidade com a plataforma."}
+
+
+def agent_summary(agent, result):
+    if agent == "Creative":
+        return "Rascunho preparado para revisão."
+    if agent == "Catalog":
+        return f"{len(result.get('products', []))} produto(s) consultado(s) no catálogo."
+    if agent == "Analytics":
+        return f"Métricas consolidadas de {result.get('products', 0)} produto(s)."
+    if agent in ("Scout", "Winner"):
+        rows = result.get("ranking", [])
+        enough = sum(bool(r.get("sample_sufficient")) for r in rows)
+        return f"{enough} de {len(rows)} produto(s) com amostra mínima para análise."
+    if agent == "Scheduler":
+        return f"{len(result.get('planned', []))} item(ns) na agenda interna."
+    rows = result.get("creatives", [])
+    missing = sum(not r.get("disclosure_present", False) for r in rows)
+    return f"{len(rows)} rascunho(s) verificado(s); {missing} precisa(m) revisar identificação de publicidade."
+
+
+def agent_run_dict(row, include_result=True):
+    data = {**public(row, ("id", "agent", "created")), "summary": agent_summary(row.agent, row.result)}
+    if include_result:
+        data["result"] = row.result
+    return data

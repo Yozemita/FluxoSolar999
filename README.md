@@ -11,6 +11,8 @@ Painel privado para organizar produtos afiliados, rascunhos, métricas e planeja
 - Creative Studio: cria e edita legendas/prompts por template. Não gera imagem ou vídeo nem usa um modelo de IA.
 - Agenda interna com validação de disclosure e data futura. Ela não publica automaticamente.
 - Sete agentes internos com execução síncrona sob demanda e histórico persistido: consulta/análise de catálogo, métricas, ranking, agenda, disclosure e criação de rascunho.
+- Dashboard com visualizações, cliques e conversões acumulados, CTR, conversão e ROI de mídia; taxas sem base aparecem como indisponíveis. Próximos passos identificam falta de dados, publicidade ausente e itens de agenda com data passada.
+- Rotina para executar seis análises em sequência, sem criar rascunhos; histórico com resumos legíveis, datas e filtro por agente. Busca de produtos por nome/código e comerciante, navegação preservada ao recarregar e manutenção das alterações de texto não salvas ao atualizar os dados.
 - Upload direto para bucket S3 por autorização temporária, quando configurado. Não envia credenciais permanentes ao navegador.
 - `/health` executa uma consulta real ao banco; retorna 503 se o banco estiver indisponível. Redis é uma conexão opcional diagnosticada em `/api/status`, não uma fila de tarefas em operação nesta versão.
 

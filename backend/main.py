@@ -17,7 +17,7 @@ from .database import AgentRun, Audit, Base, Creative, MetricEvent, Owner, Produ
 from .limits import RequestBodyLimit
 from .schemas import AgentInput, CreativeInput, CreativeUpdate, Login, MediaInput, Metric, MetricImport, ProductInput, ScheduleInput
 from .security import COOKIE, SESSION_SECONDS, authenticate, bootstrap, digest
-from .services import AGENTS, compliant, create_draft, creative_dict, dashboard, product_dict, public, ranking, run_agent, winner_score
+from .services import AGENTS, agent_run_dict, compliant, create_draft, creative_dict, dashboard, product_dict, public, ranking, run_agent, winner_score
 
 log = logging.getLogger("fluxosolar")
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
@@ -269,11 +269,11 @@ def make_app(database_url=None):
         db.add(row)
         db.add(Audit(action=f"agent.{agent}"))
         db.commit()
-        return {"id": row.id, "agent": agent, "result": result, "created": row.created}
+        return agent_run_dict(row)
 
     @app.get("/api/agent-runs", dependencies=[Depends(owner)])
     def agent_runs(db=Depends(db_session)):
-        return [public(r, ("id", "agent", "result", "created")) for r in db.scalars(select(AgentRun).order_by(AgentRun.id.desc()).limit(50))]
+        return [agent_run_dict(r) for r in db.scalars(select(AgentRun).order_by(AgentRun.id.desc()).limit(50))]
 
     @app.get("/api/status", dependencies=[Depends(owner)])
     def status(request: Request):

@@ -1,9 +1,14 @@
 "use strict";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
-const state = {products: [], creatives: [], schedules: [], agents: [], runs: []};
+const state = {products: [], creatives: [], schedules: [], agents: [], runs: [], runningBatch: false};
 const brl = new Intl.NumberFormat("pt-BR", {style: "currency", currency: "BRL"});
 const num = new Intl.NumberFormat("pt-BR");
+const percent = new Intl.NumberFormat("pt-BR", {style: "percent", maximumFractionDigits: 1});
+function timeLabel(value) {
+  const utc = value.endsWith("Z") || /[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`;
+  return new Date(utc).toLocaleString("pt-BR");
+}
 let noticeTimer;
 function el(tag, text, className) {
   const node = document.createElement(tag);
@@ -51,15 +56,18 @@ function optionSelect(select, rows, label) {
   rows.forEach(row => select.add(new Option(label(row), String(row.id))));
   if (rows.some(r => String(r.id) === current)) select.value = current;
 }
-function showView(id) {
+function showView(id, updateHash = true) {
+  if (!$$(".view").some(view => view.id === id)) id = "overview";
   $$(".view").forEach(view => { view.hidden = view.id !== id; });
   $$(".nav-item").forEach(button => {
     button.classList.toggle("active", button.dataset.view === id);
     if (button.dataset.view === id) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
+  if (updateHash && location.hash !== `#${id}`) history.pushState(null, "", `#${id}`);
   window.scrollTo({top: 0, behavior: "smooth"});
 }
+window.addEventListener("hashchange", () => showView(location.hash.slice(1), false));
 $$('[data-view]').forEach(button => button.addEventListener("click", () => showView(button.dataset.view)));
 
 function renderDashboard(data, status) {
@@ -80,7 +88,8 @@ function renderDashboard(data, status) {
     table.append(tr);
   });
   $("#ranking-note").textContent = `${data.note} O ranking exige ao menos 100 views, 20 cliques e 3 conversões; os limites são heurísticos.`;
-  $("#connection").textContent = status.database === "postgresql" ? "● PostgreSQL conectado" : "● Modo local conectado";
+  $("#connection").textContent = "● Central conectada";
+  renderOperations(data);
   const integrations = $("#integrations"); integrations.replaceChildren();
   [["Banco", status.database === "postgresql" ? "PostgreSQL" : "SQLite · desenvolvimento"],
    ["Redis", ({ready: "Conexão verificada", unavailable: "Conexão indisponível", not_configured: "Não configurado"})[status.redis]],
@@ -89,9 +98,44 @@ function renderDashboard(data, status) {
     const box = el("div", label, "integration"); box.append(el("small", value)); integrations.append(box);
   });
 }
+function viewButton(text, view) {
+  const button = el("button", text, "quiet"); button.type = "button";
+  button.addEventListener("click", () => showView(view));
+  return button;
+}
+function renderOperations(data) {
+  const funnel = $("#funnel"); funnel.replaceChildren();
+  const max = Math.max(1, data.totals.views, data.totals.clicks, data.totals.conversions);
+  [["Visualizações", data.totals.views], ["Cliques", data.totals.clicks], ["Conversões", data.totals.conversions]].forEach(([label, value]) => {
+    const row = el("div", undefined, "funnel-row"), meter = el("meter");
+    meter.min = 0; meter.max = max; meter.value = value; meter.setAttribute("aria-label", `${label}: ${num.format(value)}`);
+    row.append(el("span", label), meter, el("strong", num.format(value))); funnel.append(row);
+  });
+  const rates = $("#rates"); rates.replaceChildren();
+  [["CTR", data.rates.ctr, "Cliques ÷ visualizações"], ["Conversão", data.rates.conversion, "Conversões ÷ cliques"], ["ROI de mídia", data.rates.roi, "Resultado ÷ gasto informado"]].forEach(([label, value, note]) => {
+    const item = el("div"); item.append(el("small", label), el("strong", value === null ? "—" : percent.format(value)), el("small", value === null ? "Sem base para calcular" : note)); rates.append(item);
+  });
+  const insights = $("#insights"); insights.replaceChildren();
+  data.insights.forEach(item => {
+    const card = el("div", undefined, "insight");
+    card.append(el("h3", item.title), el("p", item.detail, "muted"), viewButton("Ver próximo passo →", item.view)); insights.append(card);
+  });
+  if (!data.insights.length) insights.append(el("p", "Nenhuma pendência identificada nos dados atuais. Revise seus relatórios e mantenha a agenda atualizada.", "muted"));
+  const activity = $("#activity"); activity.replaceChildren();
+  data.activity.forEach(run => {
+    const row = el("div", undefined, "activity-row"), content = el("div");
+    content.append(el("strong", run.agent), el("p", run.summary, "muted"));
+    row.append(content, el("small", timeLabel(run.created), "muted")); activity.append(row);
+  });
+  if (!data.activity.length) activity.append(el("p", "Execute sua primeira análise para acompanhar os resultados aqui.", "muted"), viewButton("Abrir agentes →", "agents"));
+}
+function normalizeSearch(text) { return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR"); }
 function renderProducts() {
   const list = $("#product-list"); list.replaceChildren();
-  state.products.forEach(product => {
+  const query = normalizeSearch($("#product-search").value), merchant = $("#merchant-filter").value;
+  const filtered = state.products.filter(p => (!merchant || p.merchant === merchant) && normalizeSearch(`${p.title} ${p.external_code}`).includes(query));
+  $("#product-count").textContent = `${filtered.length} de ${state.products.length} produtos`;
+  filtered.forEach(product => {
     const card = el("article", undefined, "product-card");
     const link = el("a", "Abrir link oficial ↗");
     link.href = product.affiliate_url; link.target = "_blank"; link.rel = "sponsored noopener noreferrer";
@@ -104,9 +148,10 @@ function renderProducts() {
     card.append(el("span", product.merchant, "badge"), el("h3", product.title), el("div", product.external_code, "code"), link, edit);
     list.append(card);
   });
-  if (!state.products.length) list.append(el("p", "Seu catálogo está vazio. Cadastre o primeiro produto acima.", "empty"));
-  $$(".product-select").forEach(select => optionSelect(select, state.products, p => `${p.title} · ${p.external_code}`));
+  if (!filtered.length) list.append(el("p", state.products.length ? "Nenhum produto encontrado. Ajuste a busca ou o comerciante." : "Seu catálogo está vazio. Cadastre o primeiro produto acima.", "empty"));
 }
+$("#product-search").addEventListener("input", renderProducts);
+$("#merchant-filter").addEventListener("change", renderProducts);
 function field(label, name, value, textarea = false) {
   const wrapper = el("label", label);
   const input = el(textarea ? "textarea" : "input"); input.name = name; input.value = value || ""; input.required = true;
@@ -114,13 +159,20 @@ function field(label, name, value, textarea = false) {
   wrapper.append(input); return wrapper;
 }
 function renderCreatives() {
-  const list = $("#creative-list"); list.replaceChildren();
+  const list = $("#creative-list");
+  const drafts = new Map();
+  list.querySelectorAll("form[data-creative-id]").forEach(form => {
+    const values = Object.fromEntries(new FormData(form));
+    if (JSON.stringify(values) !== form.dataset.saved) drafts.set(form.dataset.creativeId, values);
+  });
+  list.replaceChildren();
   state.creatives.forEach(creative => {
     const form = el("form", undefined, "panel creative-editor");
+    form.dataset.creativeId = String(creative.id);
     const product = state.products.find(p => p.id === creative.product_id);
     const meta = el("p", `Rascunho #${creative.id} · ${product?.external_code || "Produto"} · Template, sem geração de mídia`, "footnote full");
     form.append(el("h3", product?.title || creative.title), meta, field("Título", "title", creative.title), field("Legenda", "caption", creative.caption, true));
-    const prompt = field("Prompt para produção", "prompt", creative.prompt, true); prompt.classList.add("full"); form.append(prompt);
+    const prompt = field("Briefing de conteúdo", "prompt", creative.prompt, true); prompt.classList.add("full"); form.append(prompt);
     const uploadLabel = el("label", "Anexar mídia autorizada · S3, até 25 MB");
     const file = el("input"); file.type = "file"; file.accept = "image/jpeg,image/png,image/webp,video/mp4"; uploadLabel.append(file);
     const mediaStatus = el("p", creative.media_key ? "Mídia anexada ao rascunho" : "Sem mídia anexada", "footnote");
@@ -142,6 +194,9 @@ function renderCreatives() {
     form.addEventListener("submit", event => { event.preventDefault(); busy(save, async () => {
       await saveCreative(form, creative); notice("Rascunho atualizado.");
     }); });
+    form.dataset.saved = JSON.stringify(Object.fromEntries(new FormData(form)));
+    const unsaved = drafts.get(String(creative.id));
+    if (unsaved) Object.entries(unsaved).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
     list.append(form);
   });
   if (!state.creatives.length) list.append(el("p", "Selecione um produto e crie seu primeiro rascunho.", "empty"));
@@ -151,6 +206,7 @@ async function saveCreative(form, creative) {
   const values = Object.fromEntries(new FormData(form)); values.media_key = creative.media_key;
   const result = await api(`/api/creatives/${creative.id}`, values, "PUT");
   Object.assign(creative, result);
+  form.dataset.saved = JSON.stringify(Object.fromEntries(new FormData(form)));
 }
 function renderSchedules() {
   const list = $("#schedule-list"); list.replaceChildren();
@@ -168,26 +224,75 @@ function renderAgents() {
   const list = $("#agent-list"); list.replaceChildren();
   state.agents.forEach(name => {
     const card = el("article", undefined, "product-card"), button = el("button", "Executar agora ↗", "primary");
+    button.disabled = state.runningBatch;
     button.addEventListener("click", () => busy(button, async () => {
       const product = Number($("#agent-product").value);
       if (name === "Creative" && !product) throw new Error("Cadastre e selecione um produto primeiro.");
       await api(`/api/agents/${name}/run`, name === "Creative" ? {product_id: product} : {});
       await loadData(); notice(`${name}: execução concluída e registrada.`);
     }));
-    card.append(el("h3", name), el("p", descriptions[name], "muted"), button); list.append(card);
+    const last = state.runs.find(run => run.agent === name);
+    card.append(el("h3", name), el("p", descriptions[name], "muted"), el("small", last ? `Última execução: ${timeLabel(last.created)}` : "Sem execução no histórico recente", "muted"), button); list.append(card);
   });
+  const filter = $("#history-filter"), selected = filter.value;
+  filter.replaceChildren(new Option("Todos os agentes", ""));
+  state.agents.forEach(name => filter.add(new Option(name, name))); filter.value = selected;
+  renderAgentHistory();
+}
+function renderAgentHistory() {
   const history = $("#agent-history"); history.replaceChildren();
-  state.runs.forEach(run => {
+  const filter = $("#history-filter").value;
+  const runs = state.runs.filter(run => !filter || run.agent === filter);
+  runs.forEach(run => {
     const details = el("details", undefined, "run-record");
-    details.append(el("summary", `#${run.id} · ${run.agent} · Concluído — ver resultado`), el("pre", JSON.stringify(run.result, null, 2)));
+    const summary = el("summary", `#${run.id} · ${run.agent} · Concluído — ver resultado`);
+    summary.append(el("small", timeLabel(run.created), "run-time"));
+    details.append(summary, el("p", run.summary, "result-summary"));
+    renderAgentResult(details, run);
     history.append(details);
   });
-  if (!state.runs.length) history.append(el("p", "As execuções aparecerão aqui.", "empty"));
+  if (!runs.length) history.append(el("p", state.runs.length ? "Nenhuma execução desse agente no histórico recente." : "As execuções aparecerão aqui.", "empty"));
 }
+$("#history-filter").addEventListener("change", renderAgentHistory);
+function renderAgentResult(container, run) {
+  const result = run.result, list = el("ul", undefined, "result-list");
+  if (result.message) container.append(el("p", result.message, "muted"));
+  if (run.agent === "Analytics") {
+    [["Visualizações", num.format(result.totals.views)], ["Cliques", num.format(result.totals.clicks)], ["Comissão", brl.format(result.totals.commission)], ["Resultado", brl.format(result.profit)]].forEach(([name, value]) => list.append(el("li", `${name}: ${value}`)));
+  } else if (run.agent === "Scout" || run.agent === "Winner") {
+    result.ranking.forEach(row => list.append(el("li", `${row.product.title} · ${row.sample_sufficient ? `Score ${num.format(row.score)} · ${brl.format(row.profit)} de resultado` : "Coletar mais dados"}`)));
+  } else if (run.agent === "Catalog") {
+    result.products.forEach(row => list.append(el("li", `${row.title} · ${row.merchant} · ${row.external_code}`)));
+  } else if (run.agent === "Scheduler") {
+    result.planned.forEach(row => list.append(el("li", `Criativo #${row.creative_id} · ${row.channel} · ${timeLabel(row.scheduled_for)} · Publicação manual`)));
+  } else if (run.agent === "Compliance") {
+    result.creatives.forEach(row => list.append(el("li", `Rascunho #${row.id}: ${row.disclosure_present ? "identificação de publicidade presente" : "revisar identificação de publicidade"}`)));
+  } else if (result.creative) {
+    container.append(el("h3", result.creative.title), el("p", result.creative.caption, "muted"), viewButton("Abrir rascunhos →", "studio"));
+  }
+  if (list.childElementCount) container.append(list);
+}
+$("#run-analysis").addEventListener("click", event => busy(event.currentTarget, async () => {
+  const agents = state.agents.filter(name => name !== "Creative");
+  state.runningBatch = true; renderAgents();
+  let completed = 0;
+  try {
+    for (const agent of agents) {
+      $("#analysis-progress").textContent = `${completed + 1} de ${agents.length} · Executando ${agent}…`;
+      await api(`/api/agents/${agent}/run`, {}); completed++;
+    }
+    notice(`${completed} análises concluídas e registradas.`);
+  } finally {
+    state.runningBatch = false;
+    $("#analysis-progress").textContent = `${completed} de ${agents.length} análises concluídas.`;
+    await loadData();
+  }
+}));
 async function loadData() {
   const [products, creatives, schedules, agents, runs, data, status] = await Promise.all([
     api("/api/products"), api("/api/creatives"), api("/api/schedules"), api("/api/agents"), api("/api/agent-runs"), api("/api/dashboard"), api("/api/status")]);
   Object.assign(state, {products, creatives, schedules, agents: agents.agents, runs});
+  $$(".product-select").forEach(select => optionSelect(select, state.products, p => `${p.title} · ${p.external_code}`));
   renderDashboard(data, status); renderProducts(); renderCreatives(); renderSchedules(); renderAgents();
 }
 async function openApp() {
@@ -195,6 +300,7 @@ async function openApp() {
   await loadData();
   $("#owner-label").textContent = user.username;
   $("#login-view").hidden = true; $("#app-view").hidden = false;
+  showView(location.hash.slice(1) || "overview", false);
 }
 $("#login-form").addEventListener("submit", async event => {
   event.preventDefault(); const form = event.currentTarget, button = form.querySelector("button"); button.disabled = true; $("#login-error").textContent = "";

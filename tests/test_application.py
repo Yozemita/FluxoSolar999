@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from backend.database import Audit, Owner, Session, now
+from backend.database import Audit, Owner, Schedule, Session, now
 from backend.main import make_app
 from backend.security import COOKIE, verify_password
 from tests.conftest import PASSWORD, login
@@ -169,3 +169,45 @@ def test_media_signing_enforces_type_size_and_private_key(client, monkeypatch):
     assert captured["ExpiresIn"] == 300
     assert ["content-length-range", 1, 25 * 1024 * 1024] in captured["Conditions"]
     assert captured["Fields"]["Content-Type"] == "image/png"
+
+
+def test_dashboard_zero_data_has_no_fabricated_rates(client):
+    login(client)
+    dashboard = client.get("/api/dashboard").json()
+    assert dashboard["rates"] == {"ctr": None, "conversion": None, "roi": None}
+    assert dashboard["activity"] == [] and dashboard["overdue"] == 0
+    assert {item["view"] for item in dashboard["insights"]} == {"metrics", "studio"}
+
+
+def test_dashboard_rates_priorities_and_agent_activity_use_saved_data(client):
+    login(client)
+    client.post("/api/metrics", json={"event_id": "dashboard", "product_id": 1, "views": 1000, "clicks": 100, "conversions": 5, "commission": 50, "spend": 20})
+    result = client.post("/api/agents/Winner/run", json={})
+    assert result.status_code == 201 and result.json()["summary"] == "1 de 4 produto(s) com amostra mínima para análise."
+    dashboard = client.get("/api/dashboard").json()
+    assert dashboard["rates"] == {"ctr": .1, "conversion": .05, "roi": 1.5}
+    assert any(item["view"] == "agents" for item in dashboard["insights"])
+    assert not any(item["title"] == "Importe seu primeiro relatório" for item in dashboard["insights"])
+    activity = dashboard["activity"][0]
+    assert activity["agent"] == "Winner" and activity["summary"] == result.json()["summary"]
+    assert "result" not in activity  # No nested snapshots in subsequent Analytics runs.
+    for _ in range(2):
+        assert client.post("/api/agents/Analytics/run", json={}).status_code == 201
+    history = client.get("/api/agent-runs").json()
+    assert history[0]["summary"] == "Métricas consolidadas de 4 produto(s)."
+    assert all("result" not in row for row in history[0]["result"]["activity"])
+
+
+def test_dashboard_flags_missing_disclosure_and_overdue_planning(client):
+    login(client)
+    creative = client.post("/api/creatives", json={"product_id": 1}).json()
+    values = {key: creative[key] for key in ("title", "caption", "prompt", "media_key")}
+    assert client.put(f"/api/creatives/{creative['id']}", json={**values, "caption": "Sem identificação"}).status_code == 200
+    with client.app.state.sessions() as db:
+        db.add(Schedule(creative_id=creative["id"], channel="pinterest", scheduled_for=now() - timedelta(days=1)))
+        db.commit()
+    result = client.get("/api/dashboard").json()
+    assert result["overdue"] == 1
+    assert {item["view"] for item in result["insights"]} >= {"schedule", "studio"}
+    run = client.post("/api/agents/Compliance/run", json={}).json()
+    assert "1 precisa(m) revisar" in run["summary"]

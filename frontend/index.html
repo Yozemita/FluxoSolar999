@@ -39,12 +39,15 @@
       <section id="overview" class="view">
         <div class="page-heading"><div><p class="eyebrow">CLAREZA PARA O PRÓXIMO PASSO</p><h1>Sua operação, em foco.</h1><p class="muted">Acompanhe o que você cadastrou e os resultados que importou.</p></div><span id="connection" class="badge">Conectando…</span></div>
         <div id="summary" class="metric-grid"></div>
+        <div class="dashboard-columns section-gap"><div class="panel"><div class="section-heading"><h2>Resultados acumulados</h2><span class="muted footnote">Importação manual</span></div><div id="funnel" class="funnel"></div><div id="rates" class="rate-grid"></div></div><div class="panel"><h2>Próximos passos</h2><div id="insights" class="stack section-gap"></div></div></div>
+        <div class="panel section-gap"><div class="section-heading"><h2>Atividade dos agentes</h2><button class="quiet" data-view="agents">Abrir agentes ↗</button></div><div id="activity" class="stack section-gap"></div></div>
         <div class="panel section-gap"><div class="section-heading"><div><h2>Produtos em perspectiva</h2><p class="muted">Ranking por métricas informadas e amostra mínima.</p></div><button class="quiet" data-view="metrics">Importar métricas ↗</button></div><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Views</th><th>Cliques</th><th>Conversões</th><th>Resultado</th><th>Leitura</th></tr></thead><tbody id="ranking"></tbody></table></div><p id="ranking-note" class="footnote"></p></div>
-        <div class="panel section-gap"><h2>Conexões da central</h2><div id="integrations" class="integrations"></div><p class="footnote">Publicação social, anúncios e geração de vídeo ainda precisam de integrações próprias.</p></div>
+        <details class="panel section-gap"><summary>Conexões da central</summary><div id="integrations" class="integrations"></div><p class="footnote">As análises do painel usam os dados cadastrados e importados. Publicação social não conectada.</p></details>
       </section>
       <section id="catalog" class="view" hidden>
         <div class="page-heading"><div><p class="eyebrow">CADA LINK, NO PRODUTO CERTO</p><h1>Catálogo</h1><p class="muted">Cadastre os dados oficiais e preserve a atribuição do seu link.</p></div></div>
         <form id="product-form" class="panel form-grid"><h2 class="full">Cadastrar produto</h2><input name="id" type="hidden"><label>Comerciante<select name="merchant"><option>SHOPEE</option><option>SHEIN</option></select></label><label>Código / SKU<input name="external_code" required maxlength="100"></label><label class="full">Nome do produto<input name="title" required maxlength="200"></label><label class="full">Link de afiliado oficial<input name="affiliate_url" type="url" placeholder="https://…" required maxlength="2048"></label><div class="full form-actions"><button type="submit" class="primary">Salvar produto</button><button id="cancel-product" type="button" class="quiet">Limpar formulário</button></div></form>
+        <div class="filter-bar section-gap"><label>Buscar produto<input id="product-search" type="search" placeholder="Nome ou código do produto"></label><label>Filtrar comerciante<select id="merchant-filter" aria-label="Filtrar comerciante"><option value="">Todos</option><option>SHOPEE</option><option>SHEIN</option></select></label><span id="product-count" class="muted"></span></div>
         <div id="product-list" class="product-grid section-gap"></div>
       </section>
       <section id="studio" class="view" hidden>
@@ -63,8 +66,9 @@
       </section>
       <section id="agents" class="view" hidden>
         <div class="page-heading"><div><p class="eyebrow">ASSISTENTES DE BASTIDOR</p><h1>Agentes internos</h1><p class="muted">Execute análises e tarefas internas sob demanda. Cada execução fica registrada.</p></div></div>
-        <label class="agent-product">Produto para o agente Creative<select aria-label="Produto para o agente Creative" id="agent-product" class="product-select"></select></label><div id="agent-list" class="product-grid section-gap"></div>
-        <div class="panel section-gap"><h2>Últimas execuções</h2><div id="agent-history" class="stack"></div></div>
+        <div class="panel agent-toolbar"><div><h2>Rotina de análise</h2><p class="muted">Consulta catálogo, métricas, ranking, agenda e publicidade. Não cria rascunhos.</p></div><button id="run-analysis" class="primary" type="button">Executar análises</button><p id="analysis-progress" class="footnote" role="status" aria-live="polite"></p></div>
+        <label class="agent-product section-gap">Produto para o agente Creative<select aria-label="Produto para o agente Creative" id="agent-product" class="product-select"></select></label><div id="agent-list" class="product-grid section-gap"></div>
+        <div class="panel section-gap"><div class="section-heading"><h2>Últimas execuções</h2><label>Filtrar agente<select id="history-filter" aria-label="Filtrar agente"><option value="">Todos os agentes</option></select></label></div><div id="agent-history" class="stack"></div></div>
       </section>
       <footer>FluxoSolar · Organização, criação e análise de afiliados.</footer>
     </main>
