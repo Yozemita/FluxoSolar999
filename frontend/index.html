@@ -1,1 +1,73 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FluxoSolar Growth Engine</title><style>:root{--gold:#f5c451;--bg:#070707;--card:#11110f;--muted:#a8a39a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#3a2910 0,#0b0906 28%,var(--bg) 60%);color:#fff;font:15px system-ui,sans-serif;min-height:100vh}.shell{max-width:1180px;margin:auto;padding:28px}.brand{display:flex;justify-content:space-between;align-items:center}.brand h1{letter-spacing:.08em;margin:0}.sun{width:42px;height:42px;border:1px solid var(--gold);border-radius:50%;box-shadow:0 0 28px #f5c45155}.sub{color:var(--muted);margin:8px 0 28px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.card{background:linear-gradient(145deg,#15130f,#0d0d0c);border:1px solid #6f5828;border-radius:20px;padding:18px;box-shadow:0 12px 50px #0008}.metric{font-size:30px;color:var(--gold);font-weight:800}.label{color:var(--muted)}h2{margin-top:34px}.product{display:flex;justify-content:space-between;gap:12px;align-items:center}.code{font-family:ui-monospace,monospace;color:var(--gold)}.pill{padding:5px 9px;border:1px solid #705b30;border-radius:99px;font-size:12px}.agents{display:flex;flex-wrap:wrap;gap:8px}.agent{padding:10px 13px;border-radius:12px;background:#17140e;border:1px solid #58471f}.footer{color:#777;margin-top:34px;font-size:12px}</style></head><body><main class="shell"><header class="brand"><div><h1>FLUXOSOLAR // GROWTH ENGINE</h1><div class="sub">Affiliate Intelligence • Creative Lab • Winner Engine</div></div><div class="sun"></div></header><section class="grid"><div class="card"><div class="metric">4</div><div class="label">Produtos mapeados</div></div><div class="card"><div class="metric">7</div><div class="label">Agentes internos</div></div><div class="card"><div class="metric">100%</div><div class="label">IDs isolados por produto</div></div><div class="card"><div class="metric">LIVE</div><div class="label">Growth API MVP</div></div></section><h2>Catálogo inicial</h2><section class="grid"><div class="card product"><div><b>Macaquinho canelado</b><div class="code">CBR-ZWT-AYN</div></div><span class="pill">SHOPEE</span></div><div class="card product"><div><b>Vestido branco de renda</b><div class="code">2533Q72</div></div><span class="pill">SHEIN</span></div><div class="card product"><div><b>Calça SweetSlumber</b><div class="code">S6RNVSC</div></div><span class="pill">SHEIN</span></div><div class="card product"><div><b>Vestido com babado</b><div class="code">AKW-MJA-BNP</div></div><span class="pill">SHOPEE</span></div></section><h2>Agent Grid</h2><div class="agents"><span class="agent">◉ Scout</span><span class="agent">✦ Creative</span><span class="agent">⌘ Catalog</span><span class="agent">◷ Scheduler</span><span class="agent">⌁ Analytics</span><span class="agent">♛ Winner</span><span class="agent">◇ Compliance</span></div><div class="footer">Bots internos = análise e automação autorizada. Sem seguidores, views ou cliques artificiais.</div></main></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>FluxoSolar • Central de afiliados</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <section id="login-view" class="login-view">
+    <form id="login-form" class="login-card">
+      <div class="sun" aria-hidden="true">☀</div><p class="eyebrow">SUA CENTRAL DE AFILIADOS</p>
+      <h1>FluxoSolar</h1><p class="muted">Produtos, ideias e resultados, no mesmo lugar.</p>
+      <label>Usuário<input name="username" autocomplete="username" required maxlength="128" value="rapha"></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+      <button type="submit" class="primary">Entrar na central <span aria-hidden="true">↗</span></button>
+      <p id="login-error" role="alert" class="error"></p>
+    </form>
+  </section>
+  <div id="app-view" class="app-layout" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="FluxoSolar, início"><span class="brand-icon" aria-hidden="true">☀</span><span>FluxoSolar<small>CENTRAL DE AFILIADOS</small></span></a>
+      <p class="nav-caption">ESPAÇO DE TRABALHO</p>
+      <nav aria-label="Navegação principal">
+        <button class="nav-item active" data-view="overview" aria-current="page"><span aria-hidden="true">◫</span><span>Visão geral</span></button>
+        <button class="nav-item" data-view="catalog"><span aria-hidden="true">▦</span><span>Catálogo</span></button>
+        <button class="nav-item" data-view="studio"><span aria-hidden="true">✦</span><span>Creative Studio</span></button>
+        <button class="nav-item" data-view="metrics"><span aria-hidden="true">↗</span><span>Métricas</span></button>
+        <button class="nav-item" data-view="schedule"><span aria-hidden="true">◷</span><span>Planejamento</span></button>
+        <button class="nav-item" data-view="agents"><span aria-hidden="true">⌘</span><span>Agentes internos</span></button>
+      </nav>
+      <div class="sidebar-bottom"><span id="owner-label"></span><button id="logout" class="quiet">Sair da conta →</button></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><span>SEU ESPAÇO SOLAR <span class="muted">/ Operação</span></span><div><button id="refresh" class="quiet">↻ Atualizar</button><button id="logout-top" class="quiet">Sair</button></div></header>
+      <section id="overview" class="view">
+        <div class="page-heading"><div><p class="eyebrow">CLAREZA PARA O PRÓXIMO PASSO</p><h1>Sua operação, em foco.</h1><p class="muted">Acompanhe o que você cadastrou e os resultados que importou.</p></div><span id="connection" class="badge">Conectando…</span></div>
+        <div id="summary" class="metric-grid"></div>
+        <div class="panel section-gap"><div class="section-heading"><div><h2>Produtos em perspectiva</h2><p class="muted">Ranking por métricas informadas e amostra mínima.</p></div><button class="quiet" data-view="metrics">Importar métricas ↗</button></div><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Views</th><th>Cliques</th><th>Conversões</th><th>Resultado</th><th>Leitura</th></tr></thead><tbody id="ranking"></tbody></table></div><p id="ranking-note" class="footnote"></p></div>
+        <div class="panel section-gap"><h2>Conexões da central</h2><div id="integrations" class="integrations"></div><p class="footnote">Publicação social, anúncios e geração de vídeo ainda precisam de integrações próprias.</p></div>
+      </section>
+      <section id="catalog" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">CADA LINK, NO PRODUTO CERTO</p><h1>Catálogo</h1><p class="muted">Cadastre os dados oficiais e preserve a atribuição do seu link.</p></div></div>
+        <form id="product-form" class="panel form-grid"><h2 class="full">Cadastrar produto</h2><input name="id" type="hidden"><label>Comerciante<select name="merchant"><option>SHOPEE</option><option>SHEIN</option></select></label><label>Código / SKU<input name="external_code" required maxlength="100"></label><label class="full">Nome do produto<input name="title" required maxlength="200"></label><label class="full">Link de afiliado oficial<input name="affiliate_url" type="url" placeholder="https://…" required maxlength="2048"></label><div class="full form-actions"><button type="submit" class="primary">Salvar produto</button><button id="cancel-product" type="button" class="quiet">Limpar formulário</button></div></form>
+        <div id="product-list" class="product-grid section-gap"></div>
+      </section>
+      <section id="studio" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">DA IDEIA AO RASCUNHO</p><h1>Creative Studio</h1><p class="muted">Prepare legendas e prompts por template. Nenhuma mídia é gerada automaticamente.</p></div></div>
+        <form id="creative-form" class="panel inline-form"><label>Produto<select aria-label="Produto" name="product_id" class="product-select" required></select></label><button class="primary" type="submit">✦ Criar rascunho</button></form>
+        <div id="creative-list" class="section-gap stack"></div>
+      </section>
+      <section id="metrics" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">DECISÕES COM DADOS REAIS</p><h1>Métricas</h1><p class="muted">Importe lotes incrementais do seu relatório. O mesmo ID não duplica um lote.</p></div></div>
+        <form id="metrics-form" class="panel form-grid"><label>Produto<select aria-label="Produto" name="product_id" class="product-select" required></select></label><label>ID único do lote<input name="event_id" required maxlength="190"></label><label>Visualizações<input name="views" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Visitas ao perfil<input name="profile_visits" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Seguidores atribuídos<input name="follows" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Cliques<input name="clicks" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Conversões<input name="conversions" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Compartilhamentos<input name="shares" type="number" min="0" max="2147483647" step="1" value="0" required></label><label>Comissão (R$)<input name="commission" type="number" min="0" max="1000000000" step="0.01" value="0" required></label><label>Gasto de mídia (R$)<input name="spend" type="number" min="0" max="1000000000" step="0.01" value="0" required></label><p class="footnote full">Importe apenas o incremento de cada lote. Somar relatórios cumulativos distintos infla o total. Não há sincronização automática com as plataformas.</p><button class="primary" type="submit">Importar lote</button></form>
+      </section>
+      <section id="schedule" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">ORGANIZE A PRÓXIMA ENTREGA</p><h1>Planejamento</h1><p class="muted">Monte sua agenda. A publicação nos canais é manual nesta versão.</p></div></div>
+        <form id="schedule-form" class="panel form-grid"><label>Criativo<select aria-label="Criativo" name="creative_id" id="creative-select" required></select></label><label>Canal<select name="channel"><option value="pinterest">Pinterest</option><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="other">Outro</option></select></label><label>Data e hora local<input name="scheduled_for" type="datetime-local" required></label><div class="form-actions"><button type="submit" class="primary">Adicionar ao planejamento</button></div></form>
+        <div id="schedule-list" class="panel section-gap stack"></div>
+      </section>
+      <section id="agents" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">ASSISTENTES DE BASTIDOR</p><h1>Agentes internos</h1><p class="muted">Execute análises e tarefas internas sob demanda. Cada execução fica registrada.</p></div></div>
+        <label class="agent-product">Produto para o agente Creative<select aria-label="Produto para o agente Creative" id="agent-product" class="product-select"></select></label><div id="agent-list" class="product-grid section-gap"></div>
+        <div class="panel section-gap"><h2>Últimas execuções</h2><div id="agent-history" class="stack"></div></div>
+      </section>
+      <footer>FluxoSolar · Organização, criação e análise de afiliados.</footer>
+    </main>
+  </div>
+</body>
+</html>

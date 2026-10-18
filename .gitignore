@@ -1,0 +1,15 @@
+.venv/
+.venv-growth/
+.env
+.env.*
+!.env.example
+data/
+backups/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.db
+*.db-*
+.coverage
+node_modules/
+.railway/

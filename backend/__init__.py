@@ -1,0 +1,1 @@
+"""FluxoSolar application."""
